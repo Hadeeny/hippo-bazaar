@@ -10,12 +10,13 @@ import Link from "next/link";
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { ZodError, z } from "zod";
 import {
   AuthCredentialsValidator,
   TAuthCredentialsValidator,
 } from "@/lib/validators/account-credentials-validators";
 import { trpc } from "@/trpc/client";
+import { toast } from "sonner";
 
 const SignupPage = () => {
   const {
@@ -27,7 +28,19 @@ const SignupPage = () => {
   });
 
   const { mutate, isLoading, isError, error } =
-    trpc.auth.createPayloadUser.useMutation();
+    trpc.auth.createPayloadUser.useMutation({
+      onError: (err) => {
+        if (err.data?.code === "CONFLICT") {
+          toast.error("User already exists, sign in instead");
+          return;
+        }
+
+        if (err instanceof ZodError) {
+          toast.error(err.issues[0].message);
+          return;
+        }
+      },
+    });
   // console.log(data);
 
   const onSubmit = ({ email, password }: TAuthCredentialsValidator) => {
@@ -61,6 +74,11 @@ const SignupPage = () => {
               <div className="grid gap-2">
                 <div className="grid gap-1 py-2">
                   <Label htmlFor="email">Email</Label>
+                  {errors.email && (
+                    <p className="text-sm text-red-500">
+                      {errors.email.message}
+                    </p>
+                  )}
                   <Input
                     {...register("email")}
                     className={cn({
@@ -72,6 +90,11 @@ const SignupPage = () => {
 
                 <div className="grid gap-1 py-2">
                   <Label htmlFor="password">Password</Label>
+                  {errors.password && (
+                    <p className="text-sm text-red-500">
+                      {errors.password.message}
+                    </p>
+                  )}
                   <Input
                     {...register("password")}
                     type="password"
